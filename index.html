@@ -155,7 +155,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .resource-text strong { display: block; color: var(--text); font-size: 13px; margin-bottom: 1px; }
 .resource-text { font-size: 11px; color: var(--text2); }
 
-.pattern-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px; margin-bottom: 8px; }
+.panel-graphic { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:1.25rem; }
+
 .pattern-card-title { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
 .pattern-card-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
 .energy-chart { display: flex; align-items: flex-end; gap: 4px; height: 56px; margin: 8px 0; }
@@ -175,6 +176,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
     <div class="header-right">
       <span class="entries-today" id="entries-today"></span>
       <div class="streak-pill">🔥 <span class="streak-num" id="streak">0</span></div>
+      <button id="mute-btn" onclick="toggleMute()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:4px 10px;color:var(--text3);font-size:13px;cursor:pointer;font-family:var(--font);transition:all 0.2s;">🔊</button>
     </div>
   </div>
 
@@ -224,6 +226,27 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
         <div class="greeting-time" id="greeting-time"></div>
         <div class="greeting-text" id="greeting-text">How are you right now, <strong>there?</strong></div>
         <button class="next-btn" onclick="goToStep(1)">Check in →</button>
+
+        <!-- Last entry preview -->
+        <div id="last-entry-card" style="display:none;margin-top:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;font-family:var(--mono);margin-bottom:10px;">Last check-in</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <div id="last-energy-num" style="font-size:28px;font-weight:300;font-family:var(--mono);"></div>
+            <div>
+              <div id="last-energy-label" style="font-size:12px;color:var(--text2);"></div>
+              <div id="last-time" style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px;"></div>
+            </div>
+          </div>
+          <div id="last-modes" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"></div>
+          <div id="last-feeling" style="font-size:12px;color:var(--text2);line-height:1.5;font-style:italic;"></div>
+        </div>
+
+        <!-- First time empty state -->
+        <div id="empty-state-card" style="margin-top:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;">
+          <div style="font-size:24px;margin-bottom:8px;">🌱</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;">Your first check-in starts your pattern.<br>The more you log, the more you'll see.</div>
+        </div>
+
       </div>
     </div>
 
@@ -291,14 +314,64 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
   </div>
 
   <div class="panel" id="panel-log">
+    <!-- Heatmap graphic -->
+    <div class="panel-graphic" id="log-heatmap-wrap">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;font-family:var(--mono);">Your activity — last 5 weeks</div>
+      <div id="log-heatmap" style="display:flex;gap:3px;"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px;">
+        <span style="font-size:10px;color:var(--text3);">less</span>
+        <div style="width:8px;height:8px;border-radius:2px;background:var(--surface2);"></div>
+        <div style="width:8px;height:8px;border-radius:2px;background:rgba(124,111,224,0.3);"></div>
+        <div style="width:8px;height:8px;border-radius:2px;background:rgba(124,111,224,0.6);"></div>
+        <div style="width:8px;height:8px;border-radius:2px;background:#7C6FE0;"></div>
+        <span style="font-size:10px;color:var(--text3);">more</span>
+      </div>
+    </div>
     <div id="log-list"><div class="loading-state">Loading your entries...</div></div>
   </div>
 
   <div class="panel" id="panel-wellbeing">
+    <!-- Radial glow graphic -->
+    <div class="panel-graphic" style="display:flex;flex-direction:column;align-items:center;padding:1rem 0;">
+      <svg id="wellbeing-orb" width="160" height="160" viewBox="0 0 160 160">
+        <defs>
+          <radialGradient id="orbGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" id="orb-inner" stop-color="#7C6FE0" stop-opacity="0.6"/>
+            <stop offset="60%" id="orb-mid" stop-color="#7C6FE0" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#7C6FE0" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="80" cy="80" r="70" fill="url(#orbGrad)">
+          <animate attributeName="r" values="65;72;65" dur="4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="80" cy="80" r="38" fill="none" stroke="#7C6FE0" stroke-width="1" stroke-opacity="0.3">
+          <animate attributeName="r" values="35;42;35" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-opacity" values="0.3;0.6;0.3" dur="4s" repeatCount="indefinite"/>
+        </circle>
+        <text id="orb-score" x="80" y="76" text-anchor="middle" font-size="26" font-weight="300" fill="#F0EFF8" font-family="DM Mono,monospace">–</text>
+        <text id="orb-label" x="80" y="96" text-anchor="middle" font-size="10" fill="#9896B0" font-family="DM Sans,sans-serif">wellbeing</text>
+      </svg>
+      <div id="orb-quote" style="font-size:12px;color:var(--text3);text-align:center;max-width:240px;line-height:1.6;margin-top:0.25rem;font-style:italic;"></div>
+    </div>
     <div id="wellbeing-content"><div class="loading-state">Loading...</div></div>
   </div>
 
   <div class="panel" id="panel-patterns">
+    <!-- Wave graphic -->
+    <div class="panel-graphic" style="overflow:hidden;border-radius:12px;">
+      <svg id="pattern-wave" width="100%" height="64" viewBox="0 0 400 64" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#7C6FE0" stop-opacity="0.1"/>
+            <stop offset="50%" stop-color="#5ECBA1" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#7C6FE0" stop-opacity="0.1"/>
+          </linearGradient>
+        </defs>
+        <path id="wave-path" d="" fill="url(#waveGrad)"/>
+        <path id="wave-line" d="" fill="none" stroke="rgba(124,111,224,0.4)" stroke-width="1.5"/>
+      </svg>
+      <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:4px;font-family:var(--mono);letter-spacing:0.06em;">YOUR ENERGY WAVE</div>
+    </div>
     <div id="pattern-content"><div class="pattern-empty">Log a few entries to see patterns 🧠</div></div>
     <button class="analyze-btn" id="analyze-btn" style="display:none" onclick="analyzePatterns()">✦ Analyze my patterns with AI</button>
     <div class="ai-response" id="pattern-response">
@@ -347,6 +420,7 @@ async function saveEntry(entry) {
 
 function updateAll() {
   updateStreak(); updateEntriesCount(); renderCurve(); renderAlert(); updateHeader();
+  renderHeatmap(); renderOrb(); renderWave();
 }
 
 function getTodayEntries() {
@@ -384,6 +458,25 @@ function updateHeader() {
     ?`You've logged <strong>${todayEs.length}x</strong> today. How are you now?`
     :`How are you right now, <strong>${userName}?</strong>`;
   document.getElementById('curve-date').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+
+  // Last entry card on step 0
+  const lastCard = document.getElementById('last-entry-card');
+  const emptyCard = document.getElementById('empty-state-card');
+  const last = entries.length ? entries[entries.length-1] : null;
+  if (last && lastCard && emptyCard) {
+    lastCard.style.display = 'block';
+    emptyCard.style.display = 'none';
+    document.getElementById('last-energy-num').textContent = last.energy + '/10';
+    document.getElementById('last-energy-num').style.color = EC(last.energy);
+    document.getElementById('last-energy-label').textContent = EL[last.energy];
+    const ago = Math.round((Date.now() - new Date(last.date)) / 60000);
+    document.getElementById('last-time').textContent = ago < 60 ? ago+'m ago' : Math.round(ago/60)+'h ago';
+    document.getElementById('last-modes').innerHTML = last.modes.map(m=>`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(124,111,224,0.15);color:var(--accent)">${m}</span>`).join('');
+    document.getElementById('last-feeling').textContent = last.feeling || '';
+  } else if (emptyCard) {
+    if(lastCard) lastCard.style.display = 'none';
+    emptyCard.style.display = 'block';
+  }
 }
 
 function renderCurve() {
@@ -463,6 +556,87 @@ function renderAlert() {
     document.getElementById('alert-title').textContent="Good energy streak!";
     document.getElementById('alert-body').textContent="You're in a good place — use this window to build something that matters.";
   } else { el.classList.remove('show'); }
+}
+
+// GRAPHICS
+const QUOTES = [
+  "Showing up is the hardest part. You're already here.",
+  "Every check-in is a small act of self-awareness.",
+  "You can't change what you don't notice.",
+  "Progress lives in the patterns, not the peaks.",
+  "Consistency beats intensity, always.",
+  "The data you collect today is wisdom for tomorrow.",
+  "Knowing yourself is the beginning of everything."
+];
+
+function renderHeatmap() {
+  const el = document.getElementById('log-heatmap');
+  if (!el) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weeks = 5; const days = weeks * 7;
+  const counts = {};
+  entries.forEach(e => {
+    const d = new Date(e.date); d.setHours(0,0,0,0);
+    const key = d.toDateString();
+    counts[key] = (counts[key]||0) + 1;
+  });
+  let html = '';
+  for (let w = 0; w < weeks; w++) {
+    html += '<div style="display:flex;flex-direction:column;gap:3px;">';
+    for (let d = 0; d < 7; d++) {
+      const offset = (weeks - 1 - w) * 7 + (6 - d);
+      const date = new Date(today); date.setDate(today.getDate() - offset);
+      const count = counts[date.toDateString()] || 0;
+      const opacity = count === 0 ? 0 : count === 1 ? 0.3 : count <= 3 ? 0.6 : 1;
+      const color = count === 0 ? 'var(--surface2)' : `rgba(124,111,224,${opacity})`;
+      html += `<div title="${date.toDateString()}: ${count} entr${count!==1?'ies':'y'}" style="width:10px;height:10px;border-radius:2px;background:${color};"></div>`;
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderOrb() {
+  const scoreEl = document.getElementById('orb-score');
+  const labelEl = document.getElementById('orb-label');
+  const quoteEl = document.getElementById('orb-quote');
+  const inner = document.getElementById('orb-inner');
+  const mid = document.getElementById('orb-mid');
+  if (!scoreEl) return;
+  const quote = QUOTES[new Date().getDate() % QUOTES.length];
+  if (quoteEl) quoteEl.textContent = '"' + quote + '"';
+  if (!entries.length) return;
+  const avg = entries.reduce((s,e) => s+e.energy, 0) / entries.length;
+  const score = avg.toFixed(1);
+  scoreEl.textContent = score;
+  const color = avg<=3?'#E2665A':avg<=5?'#F0A868':avg<=7?'#5ECBA1':'#7C6FE0';
+  if (inner) inner.setAttribute('stop-color', color);
+  if (mid) mid.setAttribute('stop-color', color);
+  const orbLine = document.querySelector('#wellbeing-orb circle:nth-child(2)');
+  if (orbLine) orbLine.setAttribute('stroke', color);
+  scoreEl.setAttribute('fill', color);
+  const labels = {2:'struggling',4:'low',6:'okay',8:'good',10:'thriving'};
+  const key = Object.keys(labels).find(k => avg <= parseInt(k));
+  if (labelEl && key) labelEl.textContent = labels[key];
+}
+
+function renderWave() {
+  const pathEl = document.getElementById('wave-path');
+  const lineEl = document.getElementById('wave-line');
+  if (!pathEl || entries.length < 2) return;
+  const last20 = entries.slice(-20);
+  const W = 400, H = 64, pad = 10;
+  const pts = last20.map((e, i) => ({
+    x: pad + (i / (last20.length-1)) * (W - pad*2),
+    y: H - pad - ((e.energy-1)/9) * (H - pad*2)
+  }));
+  let d = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const cp = (pts[i-1].x + pts[i].x) / 2;
+    d += ` C${cp},${pts[i-1].y} ${cp},${pts[i].y} ${pts[i].x},${pts[i].y}`;
+  }
+  lineEl.setAttribute('d', d);
+  pathEl.setAttribute('d', d + ` L${pts[pts.length-1].x},${H} L${pts[0].x},${H} Z`);
 }
 
 // STEP FLOW
@@ -824,6 +998,98 @@ function setupUserName() {
     if(e.key==='Enter') saveName();
   });
 }
+
+// AMBIENT AUDIO
+let audioCtx = null;
+let masterGain = null;
+let isMuted = false;
+let audioStarted = false;
+
+function buildAmbientSound(ctx) {
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 3);
+  master.connect(ctx.destination);
+
+  // Layer 1 — deep drone (sub bass hum)
+  function makeDrone(freq, gain) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    g.gain.setValueAtTime(gain, ctx.currentTime);
+    osc.connect(g); g.connect(master);
+    osc.start();
+    // Slow frequency drift
+    setInterval(() => {
+      osc.frequency.linearRampToValueAtTime(freq + (Math.random()-0.5)*2, ctx.currentTime + 8);
+    }, 8000);
+  }
+
+  // Layer 2 — soft pad (filtered noise)
+  function makePad() {
+    const bufSize = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random()*2-1) * 0.04;
+    const source = ctx.createBufferSource();
+    source.buffer = buf; source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 400; filter.Q.value = 0.5;
+    const padGain = ctx.createGain(); padGain.gain.value = 0.12;
+    source.connect(filter); filter.connect(padGain); padGain.connect(master);
+    source.start();
+  }
+
+  // Layer 3 — occasional soft chime
+  function chime() {
+    const freqs = [528, 396, 432, 639];
+    const freq = freqs[Math.floor(Math.random()*freqs.length)];
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    env.gain.setValueAtTime(0, ctx.currentTime);
+    env.gain.linearRampToValueAtTime(0.06, ctx.currentTime + 0.1);
+    env.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+    osc.connect(env); env.connect(master);
+    osc.start(); osc.stop(ctx.currentTime + 3.5);
+    // Next chime in 8–20 seconds
+    setTimeout(chime, 8000 + Math.random() * 12000);
+  }
+
+  makeDrone(55, 0.3);   // A1 — deep
+  makeDrone(110, 0.2);  // A2 — mid
+  makeDrone(82.4, 0.15); // E2 — harmony
+  makePad();
+  setTimeout(chime, 4000);
+
+  return master;
+}
+
+function startAudio() {
+  if (audioStarted) return;
+  audioStarted = true;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = buildAmbientSound(audioCtx);
+  } catch(e) { console.log('Audio not supported'); }
+}
+
+function toggleMute() {
+  const btn = document.getElementById('mute-btn');
+  if (!audioCtx) { startAudio(); isMuted = false; btn.textContent = '🔊'; return; }
+  isMuted = !isMuted;
+  if (masterGain) {
+    masterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.18, audioCtx.currentTime + 0.5);
+  }
+  btn.textContent = isMuted ? '🔇' : '🔊';
+}
+
+// Auto-start on first interaction (browser requires user gesture)
+document.addEventListener('click', function startOnce() {
+  startAudio();
+  document.removeEventListener('click', startOnce);
+}, { once: true });
 
 // INIT
 setupUserName();
