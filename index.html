@@ -1000,34 +1000,142 @@ function setupUserName() {
 }
 
 // AMBIENT AUDIO
-let ambientAudio = null;
+let audioCtx = null;
+let masterGain = null;
 let isMuted = false;
 let audioStarted = false;
+
+function buildAmbientSound(ctx) {
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 4);
+  master.connect(ctx.destination);
+
+  // Soft reverb
+  function makeReverb() {
+    const convolver = ctx.createConvolver();
+    const rate = ctx.sampleRate;
+    const length = rate * 2.5;
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let c = 0; c < 2; c++) {
+      const ch = impulse.getChannelData(c);
+      for (let i = 0; i < length; i++) {
+        ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+      }
+    }
+    convolver.buffer = impulse;
+    return convolver;
+  }
+
+  const reverb = makeReverb();
+  const reverbGain = ctx.createGain();
+  reverbGain.gain.value = 0.35;
+  reverb.connect(reverbGain);
+  reverbGain.connect(master);
+
+  // Gentle bell/piano note
+  function playNote(freq, time, duration, vol) {
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const env = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    osc1.frequency.value = freq;
+    osc2.frequency.value = freq * 2.01; // slight harmonic
+
+    env.gain.setValueAtTime(0, time);
+    env.gain.linearRampToValueAtTime(vol, time + 0.04);
+    env.gain.exponentialRampToValueAtTime(vol * 0.3, time + duration * 0.3);
+    env.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+    const g1 = ctx.createGain(); g1.gain.value = 0.7;
+    const g2 = ctx.createGain(); g2.gain.value = 0.3;
+
+    osc1.connect(g1); g1.connect(env);
+    osc2.connect(g2); g2.connect(env);
+    env.connect(master);
+    env.connect(reverb);
+
+    osc1.start(time); osc1.stop(time + duration);
+    osc2.start(time); osc2.stop(time + duration);
+  }
+
+  // Pentatonic scale — always sounds pleasant, never jarring
+  // C major pentatonic: C4, E4, G4, A4, C5, E5
+  const scale = [261.6, 329.6, 392.0, 440.0, 523.2, 659.3];
+
+  function schedulePhrase(startTime) {
+    // Play 3-5 gentle notes in a soft melodic phrase
+    const noteCount = 3 + Math.floor(Math.random() * 3);
+    let t = startTime;
+    for (let i = 0; i < noteCount; i++) {
+      const freq = scale[Math.floor(Math.random() * scale.length)];
+      const gap = 0.6 + Math.random() * 0.8;
+      const dur = 2.5 + Math.random() * 1.5;
+      const vol = 0.04 + Math.random() * 0.04;
+      playNote(freq, t, dur, vol);
+      t += gap;
+    }
+    // Next phrase in 6-12 seconds
+    const nextIn = (6 + Math.random() * 6) * 1000;
+    setTimeout(() => schedulePhrase(ctx.currentTime), nextIn);
+  }
+
+  // Soft pad — very gentle high sine waves layered
+  function makePad(freq, vol) {
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const env = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.08; // very slow wobble
+    lfoGain.gain.value = 1.5;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    env.gain.setValueAtTime(0, ctx.currentTime);
+    env.gain.linearRampToValueAtTime(vol, ctx.currentTime + 6);
+
+    osc.connect(env);
+    env.connect(master);
+    env.connect(reverb);
+
+    osc.start();
+    lfo.start();
+  }
+
+  // Very soft background pads — high and airy
+  makePad(523.2, 0.025);  // C5
+  makePad(392.0, 0.02);   // G4
+  makePad(659.3, 0.015);  // E5
+
+  // Start first phrase after 2 seconds
+  setTimeout(() => schedulePhrase(ctx.currentTime), 2000);
+
+  return master;
+}
 
 function startAudio() {
   if (audioStarted) return;
   audioStarted = true;
   try {
-    ambientAudio = new Audio('krasnoshchok-krishna-flute-hindu-music-450217.mp3');
-    ambientAudio.loop = true;
-    ambientAudio.volume = 0;
-    ambientAudio.play().then(() => {
-      // Fade in gently over 4 seconds
-      let vol = 0;
-      const fadeIn = setInterval(() => {
-        vol = Math.min(vol + 0.01, 0.35);
-        ambientAudio.volume = vol;
-        if (vol >= 0.35) clearInterval(fadeIn);
-      }, 120);
-    }).catch(e => console.log('Audio blocked:', e));
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = buildAmbientSound(audioCtx);
   } catch(e) { console.log('Audio not supported'); }
 }
 
 function toggleMute() {
   const btn = document.getElementById('mute-btn');
-  if (!audioStarted) { startAudio(); isMuted = false; btn.textContent = '🔊'; return; }
+  if (!audioCtx) { startAudio(); isMuted = false; btn.textContent = '🔊'; return; }
   isMuted = !isMuted;
-  if (ambientAudio) ambientAudio.volume = isMuted ? 0 : 0.35;
+  if (masterGain) {
+    masterGain.gain.linearRampToValueAtTime(isMuted ? 0 : 0.25, audioCtx.currentTime + 0.8);
+  }
   btn.textContent = isMuted ? '🔇' : '🔊';
 }
 
