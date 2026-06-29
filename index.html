@@ -879,6 +879,32 @@ async function analyzePatterns(){
   btn.textContent='✦ Analyze my patterns with AI'; btn.style.opacity='1';
 }
 
+// STORY INTRO
+function showStoryIntro(onDone) {
+  if (localStorage.getItem('mindmap_story_seen')) { onDone(); return; }
+  const style = document.createElement('style');
+  style.textContent = '#story-overlay{position:fixed;inset:0;background:#0A0A0F;display:flex;align-items:center;justify-content:center;z-index:10000;font-family:"DM Sans",sans-serif;opacity:0;transition:opacity 1.2s ease;} #story-overlay.visible{opacity:1;} .story-line{opacity:0;transform:translateY(10px);transition:opacity 1s ease,transform 1s ease;margin-bottom:1.2rem;} .story-line.show{opacity:1;transform:translateY(0);} #story-begin{opacity:0;transform:translateY(8px);transition:opacity 1s ease,transform 1s ease;margin-top:2rem;padding:12px 32px;background:transparent;border:1px solid rgba(124,111,224,0.4);border-radius:30px;color:#7C6FE0;font-size:13px;font-weight:500;cursor:pointer;font-family:"DM Sans",sans-serif;letter-spacing:0.04em;} #story-begin.show{opacity:1;transform:translateY(0);} #story-begin:hover{background:#7C6FE0;color:#fff;}';
+  document.head.appendChild(style);
+  const overlay = document.createElement('div');
+  overlay.id = 'story-overlay';
+  overlay.innerHTML = `<div style="max-width:300px;width:90%;text-align:center;"><div style="width:8px;height:8px;border-radius:50%;background:#7C6FE0;margin:0 auto 2.5rem;animation:slowBreathe 4s ease-in-out infinite;"></div><div class="story-line" id="sl-1" style="font-size:20px;font-weight:300;color:#F0EFF8;line-height:1.6;">Most people only notice how they feel<br>when something goes wrong.</div><div class="story-line" id="sl-2" style="font-size:17px;font-weight:300;color:#9896B0;line-height:1.6;">MindMap AI checks in with you<br>3 times a day —<br>morning, afternoon, night.</div><div class="story-line" id="sl-3" style="font-size:17px;font-weight:300;color:#9896B0;line-height:1.6;">Not to fix you.<br>Just to help you notice.</div><div class="story-line" id="sl-4" style="font-size:15px;font-weight:300;color:#5C5A72;line-height:1.6;font-style:italic;">Because you can't change<br>what you don't see.</div><button id="story-begin">Begin →</button></div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => {
+    setTimeout(() => overlay.classList.add('visible'), 100);
+    setTimeout(() => document.getElementById('sl-1').classList.add('show'), 1200);
+    setTimeout(() => document.getElementById('sl-2').classList.add('show'), 3000);
+    setTimeout(() => document.getElementById('sl-3').classList.add('show'), 5200);
+    setTimeout(() => document.getElementById('sl-4').classList.add('show'), 7200);
+    setTimeout(() => document.getElementById('story-begin').classList.add('show'), 9000);
+  });
+  document.getElementById('story-begin').addEventListener('click', () => {
+    localStorage.setItem('mindmap_story_seen', 'true');
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.8s ease';
+    setTimeout(() => { overlay.remove(); onDone(); }, 800);
+  });
+}
+
 function setupUserName() {
   const existing = localStorage.getItem('mindmap_username');
   if (existing) {
@@ -1037,7 +1063,7 @@ document.addEventListener('click', function startOnce() {
 }, { once: true });
 
 // INIT
-setupUserName();
+showStoryIntro(() => setupUserName());
 updateEnergy(5);
 updateHeader();
 loadEntries();
